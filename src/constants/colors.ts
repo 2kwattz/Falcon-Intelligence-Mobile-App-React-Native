@@ -1,0 +1,27 @@
+export const colors = {
+  background: '#040B18',
+  elevated: '#081426',
+  card: '#0D1B2F',
+  cardStrong: '#10243C',
+  primary: '#102A43',
+  radar: '#36F1A1',
+  radarDim: '#1AAE78',
+  blue: '#2EA8FF',
+  blueDim: '#186DA8',
+  warning: '#FFB547',
+  danger: '#FF5C70',
+  text: '#F3F7FC',
+  textSecondary: '#8FA6BF',
+  textMuted: '#5E748E',
+  border: 'rgba(110, 184, 255, 0.16)',
+  borderStrong: 'rgba(110, 184, 255, 0.3)',
+  overlay: 'rgba(4, 11, 24, 0.88)',
+  transparent: 'transparent',
+  white08: 'rgba(255,255,255,0.08)',
+  radar10: 'rgba(54,241,161,0.10)',
+  radar20: 'rgba(54,241,161,0.20)',
+  blue12: 'rgba(46,168,255,0.12)',
+  black50: 'rgba(0,0,0,0.5)',
+} as const;
+
+export type AppColor = keyof typeof colors;
