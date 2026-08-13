@@ -2,8 +2,8 @@ import { Aircraft } from './aircraft';
 
 export interface DashboardSummary {
   aircraftInRange: number;
-  military: number;
-  alerts: number;
+  airborne: number;
+  recentReports: number;
 }
 
 export interface FlightAlert {
@@ -19,10 +19,8 @@ export interface SdrStatus {
   connected: boolean;
   device: string;
   frequencyMhz: number;
-  gainDb: number;
-  messagesPerSecond: number;
-  signalQuality: number;
-  temperatureC?: number;
+  trackCount?: number;
+  messageCount?: number;
 }
 
 export interface WeatherData {
@@ -45,10 +43,9 @@ export interface WeatherData {
 export interface ServerStatus {
   online: boolean;
   latencyMs: number;
-  apiResponseMs: number;
-  database: 'Operational' | 'Degraded' | 'Offline';
-  websocket: 'Connected' | 'Reconnecting' | 'Offline';
-  logs: string[];
+  checkedAt: string;
+  statusCode?: number;
+  error?: string;
 }
 
 export interface DashboardData {

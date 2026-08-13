@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getLocalSdrAircraft, getOpenSkyAircraft, mergeAircraftSources } from '@/apis/aircraftApi';
+import { getLiveAircraftFeed } from '@/apis/aircraftApi';
+import { LIVE_AIRCRAFT_POLL_INTERVAL_MS } from '@/constants/config';
 import { Aircraft, MapFilter } from '@/types/aircraft';
 
 export const useAircraftData = () => {
-  const [openSky, setOpenSky] = useState<Aircraft[]>([]);
-  const [sdr, setSdr] = useState<Aircraft[]>([]);
-  const [filter, setFilter] = useState<MapFilter>('combined');
+  const [liveAircraft, setLiveAircraft] = useState<Aircraft[]>([]);
+  const [filter, setFilter] = useState<MapFilter>('adsb');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,9 +13,7 @@ export const useAircraftData = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [openSkyData, sdrData] = await Promise.all([getOpenSkyAircraft(), getLocalSdrAircraft()]);
-      setOpenSky(openSkyData);
-      setSdr(sdrData);
+      setLiveAircraft((await getLiveAircraftFeed()).aircraft);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Aircraft feed is unavailable.');
     } finally {
@@ -25,16 +23,16 @@ export const useAircraftData = () => {
 
   useEffect(() => {
     void load();
+    const poller = setInterval(() => {
+      void load();
+    }, LIVE_AIRCRAFT_POLL_INTERVAL_MS);
+
+    return () => clearInterval(poller);
   }, [load]);
 
   const aircraft = useMemo(() => {
-    const combined = mergeAircraftSources(openSky, sdr);
-    if (filter === 'opensky') return openSky;
-    if (filter === 'sdr') return sdr;
-    if (filter === 'military') return combined.filter((item) => item.isMilitary);
-    if (filter === 'favorites') return combined.filter((item) => item.isFavorite);
-    return combined;
-  }, [filter, openSky, sdr]);
+    return liveAircraft;
+  }, [liveAircraft]);
 
   return { aircraft, filter, setFilter, isLoading, error, retry: load };
 };

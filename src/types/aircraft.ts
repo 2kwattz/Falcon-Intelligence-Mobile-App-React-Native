@@ -1,4 +1,4 @@
-export type AircraftSource = 'opensky' | 'sdr';
+export type AircraftSource = 'opensky' | 'sdr' | 'adsb';
 export type AircraftStatus = 'airborne' | 'grounded' | 'unknown';
 
 export interface Aircraft {
@@ -20,4 +20,4 @@ export interface Aircraft {
   isFavorite: boolean;
 }
 
-export type MapFilter = 'combined' | 'opensky' | 'sdr' | 'military' | 'favorites';
+export type MapFilter = 'adsb';

@@ -1,36 +1,48 @@
-import { getAircraftPositions, getPinnedAircraft } from './aircraftApi';
-import { apiClient } from './apiClient';
-import { delay, mockAlerts, mockSummary } from './mockData';
-import { getSdrStatus, getServerStatus } from './serverApi';
-import { USE_MOCK_API } from '@/constants/config';
+import { getLiveAircraftFeed } from './aircraftApi';
+import { getServerStatus } from './serverApi';
 import { DashboardData, DashboardSummary, FlightAlert } from '@/types/dashboard';
+import { Aircraft } from '@/types/aircraft';
 
-export const getDashboardSummary = async (): Promise<DashboardSummary> => {
-  if (USE_MOCK_API) {
-    await delay(260);
-    return mockSummary;
-  }
-  const response = await apiClient.get<DashboardSummary>('/api/dashboard/summary');
-  return response.data;
-};
+const getDashboardSummary = (aircraft: Aircraft[]): DashboardSummary => ({
+  aircraftInRange: aircraft.length,
+  airborne: aircraft.filter((item) => item.status === 'airborne').length,
+  recentReports: Math.min(aircraft.length, 5),
+});
+
+const getRecentTracks = (aircraft: Aircraft[]): FlightAlert[] => aircraft.slice(0, 5).map((item) => ({
+  id: `track-${item.icao24}`,
+  aircraft: item.callsign,
+  message: `${item.model} • ${item.altitudeFt > 0 ? `${Math.round(item.altitudeFt).toLocaleString()} ft` : 'ground'}`,
+  severity: 'info',
+  timestamp: item.lastSeen,
+  isRead: true,
+}));
 
 export const getRecentAlerts = async (): Promise<FlightAlert[]> => {
-  if (USE_MOCK_API) {
-    await delay(280);
-    return mockAlerts;
-  }
-  const response = await apiClient.get<FlightAlert[]>('/api/alerts/recent');
-  return response.data;
+  const feed = await getLiveAircraftFeed();
+  return getRecentTracks(feed.aircraft);
 };
 
 export const getDashboardData = async (): Promise<DashboardData> => {
-  const [summary, alerts, sdr, server, pinnedAircraft, mapAircraft] = await Promise.all([
-    getDashboardSummary(),
-    getRecentAlerts(),
-    getSdrStatus(),
+  const [feed, server] = await Promise.all([
+    getLiveAircraftFeed(),
     getServerStatus(),
-    getPinnedAircraft(),
-    getAircraftPositions(),
   ]);
-  return { summary, alerts, sdr, server, pinnedAircraft, mapAircraft, updatedAt: new Date().toISOString() };
+  const mapAircraft = feed.aircraft;
+  const sdr = {
+    connected: true,
+    device: 'Live ADS-B feed',
+    frequencyMhz: 1090,
+    trackCount: mapAircraft.length,
+    messageCount: feed.messages,
+  };
+  return {
+    summary: getDashboardSummary(mapAircraft),
+    alerts: getRecentTracks(mapAircraft),
+    sdr,
+    server,
+    pinnedAircraft: mapAircraft.slice(0, 8),
+    mapAircraft,
+    updatedAt: feed.receivedAt,
+  };
 };

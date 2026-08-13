@@ -28,10 +28,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           setToken(storedToken);
           setUser(storedUser ?? {
             id: 'usr-restored',
-            name: 'Roshan Bhatia',
-            email: 'roshan@falcon.local',
+            name: 'Falcon Operator',
+            email: 'operator@falcon.local',
             role: 'operator',
-            initials: 'RB',
+            initials: 'FO',
           });
         }
       } finally {

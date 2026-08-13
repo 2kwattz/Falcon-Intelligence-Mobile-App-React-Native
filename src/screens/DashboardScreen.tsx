@@ -21,6 +21,7 @@ import { MiniMap } from '@/components/MiniMap';
 import { SectionCard } from '@/components/SectionCard';
 import { StatCard } from '@/components/StatCard';
 import { colors } from '@/constants/colors';
+import { BASE_URL } from '@/constants/config';
 import { radius, spacing } from '@/constants/spacing';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -29,7 +30,7 @@ import { useLocationWeather } from '@/hooks/useLocationWeather';
 import { MainTabParamList, RootStackParamList } from '@/navigation/navigationTypes';
 import { Aircraft } from '@/types/aircraft';
 import { SdrStatus, ServerStatus, WeatherData } from '@/types/dashboard';
-import { formatDistance } from '@/utils/formatting';
+import { formatAltitude } from '@/utils/formatting';
 
 type Props = BottomTabScreenProps<MainTabParamList, 'Dashboard'>;
 type MaterialIconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -49,7 +50,7 @@ const Metric = ({ label, value, accent }: { label: string; value: string; accent
 );
 
 const SdrPanel = ({ data }: { data: SdrStatus }) => (
-  <SectionCard title="RTL-SDR Telemetry" eyebrow="Receiver status">
+  <SectionCard title="ADS-B Feed" eyebrow="Receiver status">
     <View style={styles.sdrHero}>
       <View style={styles.sdrIdentity}>
         <View style={styles.sdrIcon}><MaterialCommunityIcons name="radio-tower" size={25} color={colors.radar} /></View>
@@ -64,25 +65,8 @@ const SdrPanel = ({ data }: { data: SdrStatus }) => (
       </View>
     </View>
     <View style={styles.metricsRow}>
-      <Metric label="GAIN" value={`${data.gainDb} dB`} />
-      <Metric label="MESSAGES / SEC" value={`${data.messagesPerSecond}`} accent={colors.radar} />
-      <Metric label="TEMP" value={data.temperatureC ? `${data.temperatureC}°C` : 'N/A'} />
-    </View>
-    <View style={styles.signalRow}>
-      <Text style={styles.signalLabel}>SIGNAL QUALITY</Text>
-      <View style={styles.signalBars}>
-        {Array.from({ length: 10 }).map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.signalBar,
-              { height: 5 + index * 1.4 },
-              index < Math.round(data.signalQuality / 10) && styles.signalBarActive,
-            ]}
-          />
-        ))}
-      </View>
-      <Text style={styles.signalValue}>{data.signalQuality}%</Text>
+      <Metric label="ACTIVE TRACKS" value={`${data.trackCount ?? 0}`} accent={colors.radar} />
+      <Metric label="FEED MESSAGES" value={(data.messageCount ?? 0).toLocaleString()} />
     </View>
   </SectionCard>
 );
@@ -164,18 +148,18 @@ const WeatherUnavailablePanel = ({ message, onRetry }: { message: string; onRetr
   </SectionCard>
 );
 
-const PinnedAircraftCard = ({ aircraft }: { aircraft: Aircraft }) => (
+const LiveAircraftCard = ({ aircraft }: { aircraft: Aircraft }) => (
   <View style={styles.aircraftCard}>
     <View style={styles.aircraftTop}>
-      <View style={styles.aircraftIcon}><MaterialCommunityIcons name="airplane" size={18} color={colors.warning} /></View>
-      <MaterialCommunityIcons name="star" size={16} color={colors.warning} />
+      <View style={styles.aircraftIcon}><MaterialCommunityIcons name="airplane" size={18} color={colors.radar} /></View>
+      <Text style={styles.aircraftHex}>{aircraft.icao24}</Text>
     </View>
     <Text style={styles.aircraftName}>{aircraft.name}</Text>
     <Text style={styles.aircraftModel} numberOfLines={1}>{aircraft.model}</Text>
     <View style={styles.aircraftRule} />
     <View style={styles.aircraftMetaRow}>
-      <View><Text style={styles.metaValue}>{aircraft.status === 'airborne' ? formatDistance(aircraft.distanceKm) : '—'}</Text><Text style={styles.metaLabel}>DISTANCE</Text></View>
-      <View style={styles.alignRight}><Text style={[styles.metaValue, { color: aircraft.status === 'airborne' ? colors.radar : colors.textSecondary }]}>{aircraft.status.toUpperCase()}</Text><Text style={styles.metaLabel}>STATUS</Text></View>
+      <View><Text style={styles.metaValue}>{formatAltitude(aircraft.altitudeFt)}</Text><Text style={styles.metaLabel}>ALTITUDE</Text></View>
+      <View style={styles.alignRight}><Text style={[styles.metaValue, { color: aircraft.status === 'airborne' ? colors.radar : colors.textSecondary }]}>{Math.round(aircraft.speedKts)} kt</Text><Text style={styles.metaLabel}>GROUND SPEED</Text></View>
     </View>
     <Text style={styles.lastSeen}>Last seen {Math.max(1, Math.round((Date.now() - new Date(aircraft.lastSeen).getTime()) / 60_000))}m ago</Text>
   </View>
@@ -191,23 +175,36 @@ const StatusLine = ({ label, value, online = true }: { label: string; value: str
   </View>
 );
 
-const ServerPanel = ({ data }: { data: ServerStatus }) => (
-  <SectionCard title="Falcon Server" eyebrow="Systems overview">
+const ServerPanel = ({ data, isRefreshing, onRefresh }: { data: ServerStatus; isRefreshing: boolean; onRefresh: () => void }) => (
+  <SectionCard
+    title="Falcon Server"
+    eyebrow="Live endpoint status"
+    action={(
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Refresh server status"
+        disabled={isRefreshing}
+        onPress={onRefresh}
+        style={[styles.serverRefresh, isRefreshing && styles.serverRefreshDisabled]}
+      >
+        <Ionicons name="refresh" size={14} color={colors.radar} />
+        <Text style={styles.serverRefreshText}>{isRefreshing ? 'Checking' : 'Refresh'}</Text>
+      </Pressable>
+    )}
+  >
     <View style={styles.serverHero}>
       <View style={[styles.serverPulse, { backgroundColor: data.online ? colors.radar10 : 'rgba(255,92,112,0.1)' }]}>
         <MaterialCommunityIcons name="server-security" size={30} color={data.online ? colors.radar : colors.danger} />
       </View>
-      <View style={styles.serverCopy}><Text style={styles.serverTitle}>{data.online ? 'All systems operational' : 'Service interruption'}</Text><Text style={styles.serverSubtitle}>Last heartbeat just now</Text></View>
+      <View style={styles.serverCopy}>
+        <Text style={styles.serverTitle}>{data.online ? 'Server active' : 'Server inactive'}</Text>
+        <Text style={styles.serverSubtitle}>{data.online ? `HTTP ${data.statusCode ?? 200} received` : data.error ?? 'No response received'}</Text>
+      </View>
       <Text style={styles.latency}>{data.latencyMs} ms</Text>
     </View>
     <View style={styles.serverGrid}>
-      <StatusLine label="API Response" value={`${data.apiResponseMs} ms`} />
-      <StatusLine label="Database" value={data.database} online={data.database === 'Operational'} />
-      <StatusLine label="WebSocket" value={data.websocket} online={data.websocket === 'Connected'} />
-    </View>
-    <View style={styles.logs}>
-      <View style={styles.logsHeader}><Text style={styles.logsTitle}>RECENT SERVER LOGS</Text><View style={styles.liveLog}><View style={styles.microDot} /><Text style={styles.liveLogText}>LIVE</Text></View></View>
-      {data.logs.map((log) => <Text key={log} style={styles.logLine}>{log}</Text>)}
+      <StatusLine label="ENDPOINT" value={BASE_URL.replace(/^https?:\/\//, '')} online={data.online} />
+      <StatusLine label="LAST CHECK" value={new Date(data.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} online={data.online} />
     </View>
   </SectionCard>
 );
@@ -215,7 +212,7 @@ const ServerPanel = ({ data }: { data: ServerStatus }) => (
 export const DashboardScreen = ({ navigation }: Props) => {
   const { user } = useAuth();
   const greeting = useGreeting();
-  const { data, isLoading, isRefreshing, error, refresh, retry } = useDashboardData();
+  const { data, isLoading, isRefreshing, isServerRefreshing, error, refresh, refreshServerStatus, retry } = useDashboardData();
   const {
     data: weatherData,
     isLoading: isWeatherLoading,
@@ -255,9 +252,9 @@ export const DashboardScreen = ({ navigation }: Props) => {
           online={data.server.online}
         />
         <View style={styles.stats}>
-          <StatCard label="Aircraft in Range" value={data.summary.aircraftInRange} icon="airplane-marker" accent={colors.blue} />
-          <StatCard label="Military" value={data.summary.military} icon="shield-airplane" accent={colors.warning} />
-          <StatCard label="Active Alerts" value={data.summary.alerts} icon="alert-circle-outline" accent={colors.danger} />
+          <StatCard label="Aircraft in Feed" value={data.summary.aircraftInRange} icon="airplane-marker" accent={colors.blue} />
+          <StatCard label="Airborne" value={data.summary.airborne} icon="airplane-takeoff" accent={colors.radar} />
+          <StatCard label="Latest Reports" value={data.summary.recentReports} icon="radar" accent={colors.warning} />
         </View>
 
         <Pressable
@@ -301,7 +298,7 @@ export const DashboardScreen = ({ navigation }: Props) => {
 
         <SdrPanel data={data.sdr} />
 
-        <SectionCard title="Recent Alerts" eyebrow={`${data.summary.alerts} require attention`} action={<Text style={styles.timestamp}>UPDATED NOW</Text>}>
+        <SectionCard title="Latest Tracks" eyebrow={`${data.summary.recentReports} currently reported`} action={<Text style={styles.timestamp}>UPDATED NOW</Text>}>
           {data.alerts.map((alert, index) => <AlertItem key={alert.id} alert={alert} isLast={index === data.alerts.length - 1} />)}
         </SectionCard>
 
@@ -319,14 +316,14 @@ export const DashboardScreen = ({ navigation }: Props) => {
         )}
 
         <View style={styles.sectionHeading}>
-          <View><Text style={styles.sectionEyebrow}>WATCHLIST</Text><Text style={styles.sectionTitle}>Pinned Aircraft</Text></View>
-          <Text style={styles.sectionCount}>{data.pinnedAircraft.length} TRACKED</Text>
+          <View><Text style={styles.sectionEyebrow}>LIVE FEED</Text><Text style={styles.sectionTitle}>Current Aircraft</Text></View>
+          <Text style={styles.sectionCount}>{data.pinnedAircraft.length} SHOWN</Text>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.aircraftList}>
-          {data.pinnedAircraft.map((aircraft) => <PinnedAircraftCard key={aircraft.id} aircraft={aircraft} />)}
+          {data.pinnedAircraft.map((aircraft) => <LiveAircraftCard key={aircraft.id} aircraft={aircraft} />)}
         </ScrollView>
 
-        <ServerPanel data={data.server} />
+        <ServerPanel data={data.server} isRefreshing={isServerRefreshing} onRefresh={() => { refreshServerStatus().catch(() => undefined); }} />
         <Text style={styles.updated}>Last synchronized {new Date(data.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
       </ScrollView>
     </SafeAreaView>
@@ -402,6 +399,7 @@ const styles = StyleSheet.create({
   aircraftCard: { width: 176, padding: spacing.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md },
   aircraftTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
   aircraftIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,181,71,0.1)', alignItems: 'center', justifyContent: 'center' },
+  aircraftHex: { color: colors.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   aircraftName: { color: colors.text, fontSize: 15, fontWeight: '800' },
   aircraftModel: { color: colors.textSecondary, fontSize: 10, marginTop: 3 },
   aircraftRule: { height: 1, backgroundColor: colors.border, marginVertical: spacing.sm },
@@ -416,6 +414,9 @@ const styles = StyleSheet.create({
   serverTitle: { color: colors.text, fontSize: 13, fontWeight: '700' },
   serverSubtitle: { color: colors.textMuted, fontSize: 10, marginTop: 3 },
   latency: { color: colors.radar, fontSize: 14, fontWeight: '800' },
+  serverRefresh: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: spacing.xs },
+  serverRefreshDisabled: { opacity: 0.55 },
+  serverRefreshText: { color: colors.radar, fontSize: 10, fontWeight: '800' },
   serverGrid: { gap: spacing.sm, marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderColor: colors.border },
   statusLine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   statusLabel: { color: colors.textSecondary, fontSize: 11 },

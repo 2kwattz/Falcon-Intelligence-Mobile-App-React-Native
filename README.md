@@ -79,14 +79,26 @@ npm run ios
 
 ## Mock login
 
-The login form is prefilled for development. Any valid email address and any password containing at least six characters are accepted while mock APIs are enabled.
+The login form is prefilled from `MOCK_LOGIN_EMAIL` and `MOCK_LOGIN_PASSWORD` in the local `.env` while mock APIs are enabled. Any valid email address and any password containing at least six characters are accepted by the mock authentication service.
 
-The animated splash remains visible for a minimum of three seconds while the stored session is restored. A saved JWT goes directly to the dashboard; logout deletes the session and returns to the authentication stack.
+The animated splash runs its five-second cinematic sequence while the stored session is restored. A saved JWT goes directly to the dashboard; logout deletes the session and returns to the authentication stack.
 
 AsyncStorage keys:
 
 - `@falcon_intelligence/auth_token`
 - `@falcon_intelligence/auth_user`
+
+## Environment configuration
+
+Copy `.env.example` to `.env` before running or building the application, then replace the placeholders with values for the target environment:
+
+```bash
+cp .env.example .env
+```
+
+The local `.env` is ignored by Git. It supplies the API and WebSocket endpoints, mock-mode flags, referral-request email address, and development-only mock login values through `react-native-config`.
+
+Environment values in a mobile application are compiled into the APK/IPA and can be extracted by an end user. Never place private API secrets, signing passwords, service-account credentials, or privileged tokens in `.env`; keep those on a trusted backend or in the release pipeline's secret store.
 
 ## Validation
 
@@ -128,11 +140,13 @@ src/
 
 ## Connect the real APIs
 
-Runtime networking is configured in `src/constants/config.ts`:
+Runtime networking is loaded from `.env` and exposed through `src/constants/config.ts`:
 
-```ts
-export const BASE_URL = 'http://150.107.210.11';
-export const USE_MOCK_API = true;
+```dotenv
+API_BASE_URL=https://api.example.com
+WEBSOCKET_URL=wss://api.example.com/ws/chat
+USE_MOCK_API=false
+USE_MOCK_WEBSOCKET=false
 ```
 
 Set `USE_MOCK_API` to `false` after the placeholder endpoint paths under `src/apis/` match the backend. `apiClient.ts` already adds `Authorization: Bearer <token>`, applies a timeout, sends JSON headers, and normalizes common errors. Tokens are never logged.

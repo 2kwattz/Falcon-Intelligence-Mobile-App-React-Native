@@ -23,7 +23,7 @@ export const ProfileScreen = () => {
       </SectionCard>
       <SectionCard title="Account information">
         <ProfileField label="Full name" value={user?.name ?? 'Roshan Bhatia'} />
-        <ProfileField label="Email address" value={user?.email ?? 'roshan@falcon.local'} />
+        <ProfileField label="Email address" value={user?.email ?? 'operator@falcon.local'} />
         <ProfileField label="Access role" value={user?.role === 'admin' ? 'Administrator' : 'Airspace Operator'} />
         <ProfileField label="Operator ID" value={(user?.id ?? 'usr-roshan-01').toUpperCase()} />
       </SectionCard>

@@ -15,12 +15,12 @@ import MaterialCommunityIcons from '@react-native-vector-icons/material-design-i
 import { AppButton } from '@/components/AppButton';
 import { AppTextInput } from '@/components/AppTextInput';
 import { colors } from '@/constants/colors';
+import { REFERRAL_REQUEST_EMAIL } from '@/constants/config';
 import { radius, spacing } from '@/constants/spacing';
 import { AuthStackParamList } from '@/navigation/navigationTypes';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ReferralAccess'>;
 
-const REFERRAL_EMAIL = 'prakashbhatia1970@gmail.com';
 const REFERRAL_EMAIL_SUBJECT = 'Falcon Intelligence referral code request';
 const REFERRAL_EMAIL_BODY = `Hello Prakash,
 
@@ -37,10 +37,10 @@ export const ReferralAccessScreen = ({ navigation }: Props) => {
   const [error, setError] = useState<string | null>(null);
 
   const openReferralEmail = () => {
-    const url = `mailto:${REFERRAL_EMAIL}?subject=${encodeURIComponent(REFERRAL_EMAIL_SUBJECT)}&body=${encodeURIComponent(REFERRAL_EMAIL_BODY)}`;
+    const url = `mailto:${REFERRAL_REQUEST_EMAIL}?subject=${encodeURIComponent(REFERRAL_EMAIL_SUBJECT)}&body=${encodeURIComponent(REFERRAL_EMAIL_BODY)}`;
 
     Linking.openURL(url).catch(() => {
-      Alert.alert('Email app unavailable', `Please email ${REFERRAL_EMAIL} to request a referral code.`);
+      Alert.alert('Email app unavailable', `Please email ${REFERRAL_REQUEST_EMAIL} to request a referral code.`);
     });
   };
 
@@ -72,7 +72,7 @@ export const ReferralAccessScreen = ({ navigation }: Props) => {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Request a referral code</Text>
             <Text style={styles.cardDescription}>
-              Open a pre-drafted email addressed to {REFERRAL_EMAIL}.
+              Open a pre-drafted email addressed to {REFERRAL_REQUEST_EMAIL}.
             </Text>
             <AppButton label="Email Referral Request" onPress={openReferralEmail} variant="secondary" />
           </View>

@@ -1,5 +1,6 @@
+import { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Camera, Map, Marker } from '@maplibre/maplibre-react-native';
+import { Camera, CameraRef, Map, Marker } from '@maplibre/maplibre-react-native';
 import Ionicons from '@react-native-vector-icons/ionicons/static';
 import { AircraftMarker } from './AircraftMarker';
 import { SatelliteAttribution } from './SatelliteAttribution';
@@ -13,41 +14,54 @@ interface MiniMapProps {
   onOpen: () => void;
 }
 
-export const MiniMap = ({ aircraft, onOpen }: MiniMapProps) => (
-  <Pressable accessibilityRole="button" accessibilityLabel="Open live aircraft map" onPress={onOpen} style={styles.container}>
-    <Map
-      style={StyleSheet.absoluteFill}
-      mapStyle={satelliteMapStyle}
-      attribution={false}
-      logo={false}
-      compass={false}
-      dragPan={false}
-      touchZoom={false}
-      doubleTapZoom={false}
-      doubleTapHoldZoom={false}
-      touchRotate={false}
-      touchPitch={false}
-      pointerEvents="none"
-    >
-      <Camera initialViewState={{ center: SATELLITE_CENTER, zoom: SATELLITE_INITIAL_ZOOM }} />
-      {aircraft.slice(0, 5).map((item) => (
-        <Marker key={item.icao24} id={`mini-${item.icao24}`} lngLat={[item.longitude, item.latitude]}>
-          <AircraftMarker aircraft={item} />
-        </Marker>
-      ))}
-    </Map>
-    <View style={styles.fade} pointerEvents="none" />
-    <View style={styles.topBar} pointerEvents="none">
-      <View style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveText}>LIVE</Text></View>
-      <Text style={styles.count}>{aircraft.length} tracks</Text>
-    </View>
-    <SatelliteAttribution compact style={styles.attribution} />
-    <View style={styles.open} pointerEvents="none">
-      <Text style={styles.openText}>Open tactical map</Text>
-      <Ionicons name="arrow-forward" size={16} color={colors.radar} />
-    </View>
-  </Pressable>
-);
+export const MiniMap = ({ aircraft, onOpen }: MiniMapProps) => {
+  const cameraRef = useRef<CameraRef>(null);
+  const hasCenteredLiveFeed = useRef(false);
+
+  useEffect(() => {
+    const firstAircraft = aircraft[0];
+    if (!firstAircraft || hasCenteredLiveFeed.current) return;
+
+    cameraRef.current?.easeTo({ center: [firstAircraft.longitude, firstAircraft.latitude], zoom: 6, duration: 300 });
+    hasCenteredLiveFeed.current = true;
+  }, [aircraft]);
+
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel="Open live aircraft map" onPress={onOpen} style={styles.container}>
+      <Map
+        style={StyleSheet.absoluteFill}
+        mapStyle={satelliteMapStyle}
+        attribution={false}
+        logo={false}
+        compass={false}
+        dragPan={false}
+        touchZoom={false}
+        doubleTapZoom={false}
+        doubleTapHoldZoom={false}
+        touchRotate={false}
+        touchPitch={false}
+        pointerEvents="none"
+      >
+        <Camera ref={cameraRef} initialViewState={{ center: SATELLITE_CENTER, zoom: SATELLITE_INITIAL_ZOOM }} />
+        {aircraft.slice(0, 5).map((item) => (
+          <Marker key={item.icao24} id={`mini-${item.icao24}`} lngLat={[item.longitude, item.latitude]}>
+            <AircraftMarker aircraft={item} />
+          </Marker>
+        ))}
+      </Map>
+      <View style={styles.fade} pointerEvents="none" />
+      <View style={styles.topBar} pointerEvents="none">
+        <View style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveText}>LIVE</Text></View>
+        <Text style={styles.count}>{aircraft.length} tracks</Text>
+      </View>
+      <SatelliteAttribution compact style={styles.attribution} />
+      <View style={styles.open} pointerEvents="none">
+        <Text style={styles.openText}>Open tactical map</Text>
+        <Ionicons name="arrow-forward" size={16} color={colors.radar} />
+      </View>
+    </Pressable>
+  );
+};
 
 const styles = StyleSheet.create({
   container: { height: 190, borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.borderStrong },

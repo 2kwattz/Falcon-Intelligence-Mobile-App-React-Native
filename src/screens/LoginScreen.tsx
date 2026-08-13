@@ -15,6 +15,7 @@ import { AppButton } from '@/components/AppButton';
 import { AppTextInput } from '@/components/AppTextInput';
 import { LogoMark } from '@/components/LogoMark';
 import { colors } from '@/constants/colors';
+import { MOCK_LOGIN_EMAIL, MOCK_LOGIN_PASSWORD } from '@/constants/config';
 import { radius, spacing } from '@/constants/spacing';
 import { useAuth } from '@/hooks/useAuth';
 import { AuthStackParamList } from '@/navigation/navigationTypes';
@@ -26,8 +27,8 @@ export const LoginScreen = ({ navigation, route }: Props) => {
   const passwordRef = useRef<TextInput>(null);
   const { login } = useAuth();
   const referralCode = route.params?.referralCode;
-  const [email, setEmail] = useState('roshan@falcon.local');
-  const [password, setPassword] = useState('falcon123');
+  const [email, setEmail] = useState(MOCK_LOGIN_EMAIL);
+  const [password, setPassword] = useState(MOCK_LOGIN_PASSWORD);
   const [emailTouched, setEmailTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);

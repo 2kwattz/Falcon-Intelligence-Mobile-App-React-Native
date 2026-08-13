@@ -9,7 +9,7 @@ interface AircraftMarkerProps {
 }
 
 export const AircraftMarker = ({ aircraft, selected = false }: AircraftMarkerProps) => {
-  const accent = aircraft.isMilitary ? colors.warning : aircraft.source === 'sdr' ? colors.radar : colors.blue;
+  const accent = aircraft.isMilitary ? colors.warning : aircraft.source === 'adsb' || aircraft.source === 'sdr' ? colors.radar : colors.blue;
   return (
     <View style={styles.container}>
       {aircraft.isFavorite ? <MaterialCommunityIcons name="star" size={10} color={colors.warning} style={styles.star} /> : null}

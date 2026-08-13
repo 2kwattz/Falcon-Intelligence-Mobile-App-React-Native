@@ -9,11 +9,11 @@ export const login = async (email: string, password: string, referralCode?: stri
     return {
       token: `mock.jwt.${Date.now()}`,
       user: {
-        id: 'usr-roshan-01',
-        name: 'Roshan Bhatia',
+        id: 'usr-mock-operator',
+        name: 'Falcon Operator',
         email: email.trim().toLowerCase(),
         role: 'operator',
-        initials: 'RB',
+        initials: 'FO',
       },
     };
   }

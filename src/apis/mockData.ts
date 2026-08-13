@@ -1,13 +1,13 @@
 import { Aircraft } from '@/types/aircraft';
-import { DashboardSummary, FlightAlert, SdrStatus, ServerStatus } from '@/types/dashboard';
+import { DashboardSummary, FlightAlert, SdrStatus } from '@/types/dashboard';
 
 const now = Date.now();
 const minutesAgo = (minutes: number) => new Date(now - minutes * 60_000).toISOString();
 
 export const mockSummary: DashboardSummary = {
   aircraftInRange: 12,
-  military: 1,
-  alerts: 2,
+  airborne: 11,
+  recentReports: 5,
 };
 
 export const mockAlerts: FlightAlert[] = [
@@ -41,23 +41,8 @@ export const mockSdrStatus: SdrStatus = {
   connected: true,
   device: 'RTL-SDR Blog V4',
   frequencyMhz: 1090,
-  gainDb: 38.6,
-  messagesPerSecond: 198,
-  signalQuality: 86,
-  temperatureC: 42,
-};
-
-export const mockServerStatus: ServerStatus = {
-  online: true,
-  latencyMs: 24,
-  apiResponseMs: 81,
-  database: 'Operational',
-  websocket: 'Connected',
-  logs: [
-    '16:21:42  ADS-B frame batch processed',
-    '16:21:38  OpenSky overlay synchronized',
-    '16:21:31  SDR heartbeat acknowledged',
-  ],
+  trackCount: 12,
+  messageCount: 198,
 };
 
 export const mockOpenSkyAircraft: Aircraft[] = [

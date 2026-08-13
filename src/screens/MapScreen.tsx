@@ -15,21 +15,22 @@ import { radius, spacing } from '@/constants/spacing';
 import { useAircraftData } from '@/hooks/useAircraftData';
 import { MainTabParamList, RootStackParamList } from '@/navigation/navigationTypes';
 import { Aircraft, MapFilter } from '@/types/aircraft';
-import { formatAltitude, formatDistance } from '@/utils/formatting';
+import { formatAltitude } from '@/utils/formatting';
 
 type Props = BottomTabScreenProps<MainTabParamList, 'Map'>;
 
 const filterOptions: Array<{ id: MapFilter; label: string }> = [
-  { id: 'combined', label: 'Combined' },
-  { id: 'opensky', label: 'OpenSky' },
-  { id: 'sdr', label: 'Local SDR' },
-  { id: 'military', label: 'Military' },
-  { id: 'favorites', label: 'Favorites' },
+  { id: 'adsb', label: 'Live ADS-B' },
 ];
 
 const LegendItem = ({ color, label }: { color: string; label: string }) => (
   <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: color }]} /><Text style={styles.legendText}>{label}</Text></View>
 );
+
+const formatLastSeen = (timestamp: string): string => {
+  const elapsedSeconds = Math.max(0, Math.round((Date.now() - new Date(timestamp).getTime()) / 1_000));
+  return elapsedSeconds < 60 ? `${elapsedSeconds}s ago` : `${Math.round(elapsedSeconds / 60)}m ago`;
+};
 
 const AircraftDetails = ({ aircraft, onClose }: { aircraft: Aircraft; onClose: () => void }) => (
   <View style={styles.details}>
@@ -52,24 +53,32 @@ const AircraftDetails = ({ aircraft, onClose }: { aircraft: Aircraft; onClose: (
       <View><Text style={styles.dataValue}>{formatAltitude(aircraft.altitudeFt)}</Text><Text style={styles.dataLabel}>ALTITUDE</Text></View>
       <View><Text style={styles.dataValue}>{aircraft.speedKts} kt</Text><Text style={styles.dataLabel}>GROUND SPEED</Text></View>
       <View><Text style={styles.dataValue}>{aircraft.heading}°</Text><Text style={styles.dataLabel}>HEADING</Text></View>
-      <View><Text style={styles.dataValue}>{formatDistance(aircraft.distanceKm)}</Text><Text style={styles.dataLabel}>DISTANCE</Text></View>
+      <View><Text style={styles.dataValue}>{formatLastSeen(aircraft.lastSeen)}</Text><Text style={styles.dataLabel}>LAST SEEN</Text></View>
     </View>
     <View style={styles.sourceRow}>
-      <View style={[styles.sourceDot, { backgroundColor: aircraft.source === 'sdr' ? colors.radar : colors.blue }]} />
-      <Text style={styles.sourceText}>{aircraft.source === 'sdr' ? 'LOCAL RTL-SDR' : 'OPENSKY NETWORK'} • ICAO {aircraft.icao24}</Text>
-      {aircraft.isFavorite ? <MaterialCommunityIcons name="star" size={14} color={colors.warning} /> : null}
+      <View style={[styles.sourceDot, { backgroundColor: colors.radar }]} />
+      <Text style={styles.sourceText}>LIVE ADS-B FEED • ICAO {aircraft.icao24}</Text>
     </View>
   </View>
 );
 
 export const MapScreen = ({ navigation }: Props) => {
   const cameraRef = useRef<CameraRef>(null);
+  const hasCenteredLiveFeed = useRef(false);
   const { aircraft, filter, setFilter, isLoading, error, retry } = useAircraftData();
   const [selected, setSelected] = useState<Aircraft | null>(null);
 
   useEffect(() => {
     if (selected && !aircraft.some((item) => item.icao24 === selected.icao24)) setSelected(null);
   }, [aircraft, selected]);
+
+  useEffect(() => {
+    const firstAircraft = aircraft[0];
+    if (!firstAircraft || hasCenteredLiveFeed.current) return;
+
+    cameraRef.current?.easeTo({ center: [firstAircraft.longitude, firstAircraft.latitude], zoom: 6, duration: 450 });
+    hasCenteredLiveFeed.current = true;
+  }, [aircraft]);
 
   const openSatellite = () => {
     navigation.getParent<NativeStackNavigationProp<RootStackParamList>>()?.navigate('Satellite');
@@ -164,10 +173,7 @@ export const MapScreen = ({ navigation }: Props) => {
 
       {!selected && !error ? (
         <View style={styles.legend}>
-          <LegendItem color={colors.blue} label="OpenSky" />
-          <LegendItem color={colors.radar} label="Local SDR" />
-          <LegendItem color={colors.warning} label="Military" />
-          <MaterialCommunityIcons name="star" size={11} color={colors.warning} /><Text style={styles.legendText}>Favorite</Text>
+          <LegendItem color={colors.radar} label="Live ADS-B track" />
         </View>
       ) : null}
       {selected ? <AircraftDetails aircraft={selected} onClose={() => setSelected(null)} /> : null}
