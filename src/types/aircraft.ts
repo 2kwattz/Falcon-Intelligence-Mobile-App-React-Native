@@ -9,6 +9,8 @@ export interface Aircraft {
   model: string;
   latitude: number;
   longitude: number;
+  /** False when the feed has identification data but no usable coordinates. */
+  hasPosition?: boolean;
   altitudeFt: number;
   heading: number;
   speedKts: number;

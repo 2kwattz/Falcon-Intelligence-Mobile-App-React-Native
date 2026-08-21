@@ -14,14 +14,21 @@ import { SATELLITE_CENTER, SATELLITE_INITIAL_ZOOM, satelliteMapStyle } from '@/c
 import { radius, spacing } from '@/constants/spacing';
 import { useAircraftData } from '@/hooks/useAircraftData';
 import { MainTabParamList, RootStackParamList } from '@/navigation/navigationTypes';
-import { Aircraft, MapFilter } from '@/types/aircraft';
+import { Aircraft, AircraftSource } from '@/types/aircraft';
 import { formatAltitude } from '@/utils/formatting';
 
 type Props = BottomTabScreenProps<MainTabParamList, 'Map'>;
 
-const filterOptions: Array<{ id: MapFilter; label: string }> = [
-  { id: 'adsb', label: 'Live ADS-B' },
+const filterOptions: Array<{ id: AircraftSource; label: string }> = [
+  { id: 'sdr', label: 'SDR Receiver' },
+  { id: 'opensky', label: 'OpenSky' },
 ];
+
+const sourceDetails: Record<AircraftSource, { label: string; color: string }> = {
+  adsb: { label: 'LIVE ADS-B FEED', color: colors.radar },
+  sdr: { label: 'LOCAL SDR RECEIVER', color: colors.radar },
+  opensky: { label: 'OPENSKY NETWORK', color: colors.blue },
+};
 
 const LegendItem = ({ color, label }: { color: string; label: string }) => (
   <View style={styles.legendItem}><View style={[styles.legendDot, { backgroundColor: color }]} /><Text style={styles.legendText}>{label}</Text></View>
@@ -30,6 +37,19 @@ const LegendItem = ({ color, label }: { color: string; label: string }) => (
 const formatLastSeen = (timestamp: string): string => {
   const elapsedSeconds = Math.max(0, Math.round((Date.now() - new Date(timestamp).getTime()) / 1_000));
   return elapsedSeconds < 60 ? `${elapsedSeconds}s ago` : `${Math.round(elapsedSeconds / 60)}m ago`;
+};
+
+const DataOnlyAircraft = ({ aircraft, onPress }: { aircraft: Aircraft; onPress: () => void }) => {
+  const source = sourceDetails[aircraft.source];
+
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`View ${aircraft.callsign} details`} onPress={onPress} style={styles.dataOnlyCard}>
+      <View style={[styles.dataOnlyDot, { backgroundColor: source.color }]} />
+      <Text numberOfLines={1} style={styles.dataOnlyCallsign}>{aircraft.callsign}</Text>
+      <Text numberOfLines={1} style={styles.dataOnlyModel}>{aircraft.model}</Text>
+      <Text style={styles.dataOnlySource}>{source.label}</Text>
+    </Pressable>
+  );
 };
 
 const AircraftDetails = ({ aircraft, onClose }: { aircraft: Aircraft; onClose: () => void }) => (
@@ -56,8 +76,10 @@ const AircraftDetails = ({ aircraft, onClose }: { aircraft: Aircraft; onClose: (
       <View><Text style={styles.dataValue}>{formatLastSeen(aircraft.lastSeen)}</Text><Text style={styles.dataLabel}>LAST SEEN</Text></View>
     </View>
     <View style={styles.sourceRow}>
-      <View style={[styles.sourceDot, { backgroundColor: colors.radar }]} />
-      <Text style={styles.sourceText}>LIVE ADS-B FEED • ICAO {aircraft.icao24}</Text>
+      <View style={[styles.sourceDot, { backgroundColor: sourceDetails[aircraft.source].color }]} />
+      <Text style={styles.sourceText}>
+        {sourceDetails[aircraft.source].label} • ICAO {aircraft.icao24}{aircraft.hasPosition === false ? ' • NO MAP POSITION' : ''}
+      </Text>
     </View>
   </View>
 );
@@ -65,12 +87,12 @@ const AircraftDetails = ({ aircraft, onClose }: { aircraft: Aircraft; onClose: (
 export const MapScreen = ({ navigation }: Props) => {
   const cameraRef = useRef<CameraRef>(null);
   const hasCenteredLiveFeed = useRef(false);
-  const { aircraft, filter, setFilter, isLoading, error, retry } = useAircraftData();
+  const { aircraft, dataOnlyAircraft, visibleAircraft, enabledSources, toggleSource, isLoading, error, retry } = useAircraftData();
   const [selected, setSelected] = useState<Aircraft | null>(null);
 
   useEffect(() => {
-    if (selected && !aircraft.some((item) => item.icao24 === selected.icao24)) setSelected(null);
-  }, [aircraft, selected]);
+    if (selected && !visibleAircraft.some((item) => item.id === selected.id)) setSelected(null);
+  }, [selected, visibleAircraft]);
 
   useEffect(() => {
     const firstAircraft = aircraft[0];
@@ -105,7 +127,7 @@ export const MapScreen = ({ navigation }: Props) => {
           maxZoom={18}
         />
         {aircraft.map((item) => {
-          const isSelected = selected?.icao24 === item.icao24;
+          const isSelected = selected?.id === item.id;
           return (
             <Marker
               key={`${item.source}-${item.icao24}`}
@@ -150,10 +172,12 @@ export const MapScreen = ({ navigation }: Props) => {
           {filterOptions.map((option) => (
             <Pressable
               key={option.id}
-              onPress={() => setFilter(option.id)}
-              style={[styles.filter, filter === option.id && styles.filterActive]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: enabledSources.has(option.id) }}
+              onPress={() => toggleSource(option.id)}
+              style={[styles.filter, enabledSources.has(option.id) && styles.filterActive]}
             >
-              <Text style={[styles.filterText, filter === option.id && styles.filterTextActive]}>{option.label}</Text>
+              <Text style={[styles.filterText, enabledSources.has(option.id) && styles.filterTextActive]}>{option.label}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -161,9 +185,23 @@ export const MapScreen = ({ navigation }: Props) => {
 
       <View style={styles.trackBadge}>
         <View style={styles.scanDot} />
-        <Text style={styles.trackCount}>{isLoading ? 'SCANNING' : `${aircraft.length} ACTIVE TRACKS`}</Text>
+        <Text style={styles.trackCount}>
+          {isLoading ? 'SCANNING' : `${aircraft.length} MAP TRACKS${dataOnlyAircraft.length ? ` • ${dataOnlyAircraft.length} DATA ONLY` : ''}`}
+        </Text>
       </View>
       <SatelliteAttribution style={styles.attribution} />
+
+      {!selected && dataOnlyAircraft.length > 0 ? (
+        <View style={styles.dataOnlyPanel}>
+          <View style={styles.dataOnlyHeader}>
+            <MaterialCommunityIcons name="crosshairs-question" size={15} color={colors.warning} />
+            <Text style={styles.dataOnlyTitle}>DATA ONLY • NO MAP POSITION</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dataOnlyList}>
+            {dataOnlyAircraft.map((item) => <DataOnlyAircraft key={item.id} aircraft={item} onPress={() => setSelected(item)} />)}
+          </ScrollView>
+        </View>
+      ) : null}
 
       {error ? (
         <View style={styles.errorPanel}>
@@ -173,7 +211,9 @@ export const MapScreen = ({ navigation }: Props) => {
 
       {!selected && !error ? (
         <View style={styles.legend}>
-          <LegendItem color={colors.radar} label="Live ADS-B track" />
+          {filterOptions.filter((option) => enabledSources.has(option.id)).map((option) => (
+            <LegendItem key={option.id} color={sourceDetails[option.id].color} label={option.label} />
+          ))}
         </View>
       ) : null}
       {selected ? <AircraftDetails aircraft={selected} onClose={() => setSelected(null)} /> : null}
@@ -199,6 +239,15 @@ const styles = StyleSheet.create({
   attribution: { position: 'absolute', top: 139, right: spacing.md },
   scanDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.radar },
   trackCount: { color: colors.text, fontSize: 9, fontWeight: '800', letterSpacing: 0.7 },
+  dataOnlyPanel: { position: 'absolute', top: 178, left: spacing.md, right: spacing.md, backgroundColor: colors.overlay, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingVertical: spacing.sm },
+  dataOnlyHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: spacing.sm },
+  dataOnlyTitle: { color: colors.warning, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 },
+  dataOnlyList: { gap: spacing.xs, paddingHorizontal: spacing.sm, paddingTop: spacing.sm },
+  dataOnlyCard: { width: 155, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.sm },
+  dataOnlyDot: { width: 5, height: 5, borderRadius: 3, position: 'absolute', top: spacing.sm, right: spacing.sm },
+  dataOnlyCallsign: { color: colors.text, fontSize: 11, fontWeight: '800', paddingRight: spacing.sm },
+  dataOnlyModel: { color: colors.textSecondary, fontSize: 8, marginTop: 3 },
+  dataOnlySource: { color: colors.textMuted, fontSize: 7, fontWeight: '800', letterSpacing: 0.5, marginTop: spacing.xs },
   legend: { position: 'absolute', left: spacing.md, right: spacing.md, bottom: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.overlay, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   legendDot: { width: 6, height: 6, borderRadius: 3 },
