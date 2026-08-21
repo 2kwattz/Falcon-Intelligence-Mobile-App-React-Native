@@ -17,6 +17,7 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
   Satellite: undefined;
   AirForceDatabase: undefined;
+  TrackedAircraftArchive: undefined;
   Profile: undefined;
   SecuritySettings: undefined;
   NotificationSettings: undefined;

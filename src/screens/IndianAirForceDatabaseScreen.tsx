@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import {
-  FlatList,
   Pressable,
   RefreshControl,
+  SectionList,
   StyleSheet,
   Text,
   TextInput,
@@ -50,6 +50,41 @@ const DataField = ({ label, value, monospace = false }: { label: string; value: 
 
 const ListSeparator = () => <View style={styles.separator} />;
 
+type AircraftSection = {
+  title: string;
+  data: IndianAirForceAircraft[];
+  count: number;
+};
+
+const AircraftTypeHeader = ({
+  section,
+  isCollapsed,
+  onPress,
+}: {
+  section: AircraftSection;
+  isCollapsed: boolean;
+  onPress: () => void;
+}) => (
+  <Pressable
+    accessibilityRole="button"
+    accessibilityLabel={`${isCollapsed ? 'Show' : 'Hide'} ${section.count} ${section.title} aircraft`}
+    accessibilityState={{ expanded: !isCollapsed }}
+    onPress={onPress}
+    style={styles.typeHeader}
+  >
+    <View>
+      <Text style={styles.typeLabel}>AIRCRAFT TYPE</Text>
+      <Text style={styles.typeName}>{section.title}</Text>
+    </View>
+    <View style={styles.typeHeaderAction}>
+      <View style={styles.typeCount}>
+        <Text style={styles.typeCountText}>{section.count}</Text>
+      </View>
+      <Ionicons name={isCollapsed ? 'chevron-down' : 'chevron-up'} size={18} color={colors.textSecondary} />
+    </View>
+  </Pressable>
+);
+
 const AircraftRecord = ({ aircraft }: { aircraft: IndianAirForceAircraft }) => (
   <View style={styles.record}>
     <View style={styles.recordHeader}>
@@ -81,6 +116,7 @@ const AircraftRecord = ({ aircraft }: { aircraft: IndianAirForceAircraft }) => (
 export const IndianAirForceDatabaseScreen = () => {
   const { aircraft, isLoading, isRefreshing, error, refresh, retry } = useIndianAirForceDatabase();
   const [query, setQuery] = useState('');
+  const [collapsedTypes, setCollapsedTypes] = useState<Set<string>>(() => new Set());
 
   const filteredAircraft = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -91,16 +127,55 @@ export const IndianAirForceDatabaseScreen = () => {
     );
   }, [aircraft, query]);
 
+  const aircraftSections = useMemo(() => {
+    const groups = new Map<string, IndianAirForceAircraft[]>();
+
+    filteredAircraft.forEach((item) => {
+      const type = item.aircraftName || 'Unclassified aircraft';
+      const records = groups.get(type);
+      if (records) {
+        records.push(item);
+      } else {
+        groups.set(type, [item]);
+      }
+    });
+
+    return Array.from(groups, ([title, data]) => ({
+      title,
+      count: data.length,
+      data: collapsedTypes.has(title) ? [] : data,
+    }));
+  }, [collapsedTypes, filteredAircraft]);
+
+  const toggleAircraftType = (type: string) => {
+    setCollapsedTypes((previous) => {
+      const next = new Set(previous);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return next;
+    });
+  };
+
   if (isLoading && aircraft.length === 0) {
     return <LoadingState fullScreen label="Loading Indian Air Force database…" />;
   }
 
   return (
     <SafeAreaView edges={['bottom']} style={styles.screen}>
-      <FlatList
-        data={filteredAircraft}
+      <SectionList
+        sections={aircraftSections}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <AircraftRecord aircraft={item} />}
+        renderSectionHeader={({ section }) => (
+          <AircraftTypeHeader
+            section={section}
+            isCollapsed={collapsedTypes.has(section.title)}
+            onPress={() => toggleAircraftType(section.title)}
+          />
+        )}
         ItemSeparatorComponent={ListSeparator}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -113,6 +188,7 @@ export const IndianAirForceDatabaseScreen = () => {
           />
         }
         contentContainerStyle={styles.content}
+        stickySectionHeadersEnabled
         ListHeaderComponent={
           <View style={styles.header}>
             <View style={styles.titleRow}>
@@ -217,6 +293,12 @@ const styles = StyleSheet.create({
   errorText: { flex: 1, color: colors.textSecondary, fontSize: 11, lineHeight: 16 },
   retryButton: { paddingHorizontal: spacing.xs, paddingVertical: 5 },
   retryText: { color: colors.danger, fontSize: 10, fontWeight: '800' },
+  typeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.lg, marginBottom: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.border },
+  typeLabel: { color: colors.textMuted, fontSize: 7, fontWeight: '800', letterSpacing: 0.9 },
+  typeName: { color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 3 },
+  typeCount: { minWidth: 26, height: 26, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.radar10, borderWidth: 1, borderColor: colors.radar20 },
+  typeCountText: { color: colors.radar, fontSize: 11, fontWeight: '900' },
+  typeHeaderAction: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   separator: { height: spacing.sm },
   record: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md },
   recordHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

@@ -197,13 +197,19 @@ const ServerPanel = ({ data, isRefreshing, onRefresh }: { data: ServerStatus; is
         <MaterialCommunityIcons name="server-security" size={30} color={data.online ? colors.radar : colors.danger} />
       </View>
       <View style={styles.serverCopy}>
-        <Text style={styles.serverTitle}>{data.online ? 'Server active' : 'Server inactive'}</Text>
-        <Text style={styles.serverSubtitle}>{data.online ? `HTTP ${data.statusCode ?? 200} received` : data.error ?? 'No response received'}</Text>
+        <Text style={styles.serverTitle}>{data.online ? 'Server reached' : 'Server unreachable'}</Text>
+        <Text style={styles.serverSubtitle}>
+          {data.online
+            ? data.routeAvailable
+              ? `HTTP ${data.statusCode} received`
+              : `HTTP ${data.statusCode} received — route not found`
+            : data.error ?? 'No response received'}
+        </Text>
       </View>
       <Text style={styles.latency}>{data.latencyMs} ms</Text>
     </View>
     <View style={styles.serverGrid}>
-      <StatusLine label="ENDPOINT" value={BASE_URL.replace(/^https?:\/\//, '')} online={data.online} />
+      <StatusLine label="REQUEST" value={(data.requestUrl ?? BASE_URL).replace(/^https?:\/\//, '')} online={data.online} />
       <StatusLine label="LAST CHECK" value={new Date(data.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} online={data.online} />
     </View>
   </SectionCard>
@@ -257,6 +263,36 @@ export const DashboardScreen = ({ navigation }: Props) => {
           <StatCard label="Latest Reports" value={data.summary.recentReports} icon="radar" accent={colors.warning} />
         </View>
 
+        {data.aircraftFeedError ? (
+          <View style={styles.feedErrorBanner}>
+            <MaterialCommunityIcons name="radar" size={18} color={colors.warning} />
+            <View style={styles.feedErrorCopy}>
+              <Text style={styles.feedErrorTitle}>Live aircraft feed unavailable</Text>
+              <Text style={styles.feedErrorMessage} numberOfLines={2}>{data.aircraftFeedError}</Text>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Retry aircraft feed" onPress={retry} style={styles.feedRetryButton}>
+              <Text style={styles.feedRetryText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open Falcon tracked aircraft archive"
+          onPress={() => rootNavigation?.navigate('TrackedAircraftArchive')}
+          style={styles.archiveCta}
+        >
+          <View style={styles.archiveIcon}>
+            <MaterialCommunityIcons name="radar" size={25} color={colors.radar} />
+          </View>
+          <View style={styles.databaseCopy}>
+            <Text style={styles.archiveEyebrow}>HISTORICAL AIRSPACE INTELLIGENCE</Text>
+            <Text style={styles.databaseTitle}>Falcon Intelligence Archive</Text>
+            <Text style={styles.databaseSubtitle}>Search and filter aircraft detected in the last 5 days</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={19} color={colors.radar} />
+        </Pressable>
+
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Open Indian Air Force database"
@@ -299,7 +335,11 @@ export const DashboardScreen = ({ navigation }: Props) => {
         <SdrPanel data={data.sdr} />
 
         <SectionCard title="Latest Tracks" eyebrow={`${data.summary.recentReports} currently reported`} action={<Text style={styles.timestamp}>UPDATED NOW</Text>}>
-          {data.alerts.map((alert, index) => <AlertItem key={alert.id} alert={alert} isLast={index === data.alerts.length - 1} />)}
+          {data.alerts.length ? (
+            data.alerts.map((alert, index) => <AlertItem key={alert.id} alert={alert} isLast={index === data.alerts.length - 1} />)
+          ) : (
+            <Text style={styles.feedUnavailableText}>No aircraft reports are available right now.</Text>
+          )}
         </SectionCard>
 
         {weatherData ? (
@@ -321,6 +361,7 @@ export const DashboardScreen = ({ navigation }: Props) => {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.aircraftList}>
           {data.pinnedAircraft.map((aircraft) => <LiveAircraftCard key={aircraft.id} aircraft={aircraft} />)}
+          {!data.pinnedAircraft.length ? <Text style={styles.feedUnavailableText}>Live aircraft will appear here when the feed reconnects.</Text> : null}
         </ScrollView>
 
         <ServerPanel data={data.server} isRefreshing={isServerRefreshing} onRefresh={() => { refreshServerStatus().catch(() => undefined); }} />
@@ -334,6 +375,16 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: 112, gap: spacing.md },
   stats: { flexDirection: 'row', gap: spacing.xs },
+  feedErrorBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderWidth: 1, borderColor: 'rgba(255,181,71,0.28)', borderRadius: radius.md, backgroundColor: 'rgba(255,181,71,0.08)' },
+  feedErrorCopy: { flex: 1 },
+  feedErrorTitle: { color: colors.warning, fontSize: 11, fontWeight: '800' },
+  feedErrorMessage: { color: colors.textSecondary, fontSize: 9, lineHeight: 13, marginTop: 2 },
+  feedRetryButton: { paddingHorizontal: spacing.xs, paddingVertical: 6 },
+  feedRetryText: { color: colors.warning, fontSize: 10, fontWeight: '800' },
+  feedUnavailableText: { color: colors.textMuted, fontSize: 11, paddingVertical: spacing.sm },
+  archiveCta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.radar20, borderRadius: radius.lg },
+  archiveIcon: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.radar10, borderWidth: 1, borderColor: colors.radar20 },
+  archiveEyebrow: { color: colors.radar, fontSize: 7, fontWeight: '900', letterSpacing: 0.9 },
   databaseCta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: radius.lg },
   databaseIcon: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,181,71,0.1)', borderWidth: 1, borderColor: 'rgba(255,181,71,0.18)' },
   databaseCopy: { flex: 1 },

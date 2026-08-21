@@ -1,4 +1,4 @@
-import { getLiveAircraftFeed } from './aircraftApi';
+import { getLiveAircraftFeed, LiveAircraftFeed } from './aircraftApi';
 import { getServerStatus } from './serverApi';
 import { DashboardData, DashboardSummary, FlightAlert } from '@/types/dashboard';
 import { Aircraft } from '@/types/aircraft';
@@ -24,14 +24,20 @@ export const getRecentAlerts = async (): Promise<FlightAlert[]> => {
 };
 
 export const getDashboardData = async (): Promise<DashboardData> => {
-  const [feed, server] = await Promise.all([
-    getLiveAircraftFeed(),
-    getServerStatus(),
-  ]);
+  let feed: LiveAircraftFeed = { aircraft: [], messages: 0, receivedAt: new Date().toISOString() };
+  let aircraftFeedError: string | undefined;
+
+  try {
+    feed = await getLiveAircraftFeed();
+  } catch (requestError) {
+    aircraftFeedError = requestError instanceof Error ? requestError.message : 'Aircraft feed is unavailable.';
+  }
+
+  const server = await getServerStatus();
   const mapAircraft = feed.aircraft;
   const sdr = {
-    connected: true,
-    device: 'Live ADS-B feed',
+    connected: !aircraftFeedError,
+    device: aircraftFeedError ? 'ADS-B feed unavailable' : 'Live ADS-B feed',
     frequencyMhz: 1090,
     trackCount: mapAircraft.length,
     messageCount: feed.messages,
@@ -44,5 +50,6 @@ export const getDashboardData = async (): Promise<DashboardData> => {
     pinnedAircraft: mapAircraft.slice(0, 8),
     mapAircraft,
     updatedAt: feed.receivedAt,
+    aircraftFeedError,
   };
 };

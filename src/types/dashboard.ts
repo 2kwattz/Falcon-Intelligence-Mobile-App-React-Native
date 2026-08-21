@@ -45,6 +45,8 @@ export interface ServerStatus {
   latencyMs: number;
   checkedAt: string;
   statusCode?: number;
+  requestUrl?: string;
+  routeAvailable?: boolean;
   error?: string;
 }
 
@@ -56,4 +58,5 @@ export interface DashboardData {
   pinnedAircraft: Aircraft[];
   mapAircraft: Aircraft[];
   updatedAt: string;
+  aircraftFeedError?: string;
 }

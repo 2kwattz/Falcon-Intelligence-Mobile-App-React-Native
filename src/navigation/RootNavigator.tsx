@@ -11,6 +11,7 @@ import { ProfileScreen } from '@/screens/ProfileScreen';
 import { SatelliteViewScreen } from '@/screens/SatelliteViewScreen';
 import { SecuritySettingsScreen } from '@/screens/SecuritySettingsScreen';
 import { SplashScreen } from '@/screens/SplashScreen';
+import { TrackedAircraftArchiveScreen } from '@/screens/TrackedAircraftArchiveScreen';
 import { AuthNavigator } from './AuthNavigator';
 import { MainTabNavigator } from './MainTabNavigator';
 import { RootStackParamList } from './navigationTypes';
@@ -43,6 +44,7 @@ const AppNavigator = () => (
     <Stack.Screen name="Main" component={MainTabNavigator} options={{ headerShown: false }} />
     <Stack.Screen name="Satellite" component={SatelliteViewScreen} options={{ title: 'Satellite Intelligence' }} />
     <Stack.Screen name="AirForceDatabase" component={IndianAirForceDatabaseScreen} options={{ title: 'IAF Database' }} />
+    <Stack.Screen name="TrackedAircraftArchive" component={TrackedAircraftArchiveScreen} options={{ title: 'Aircraft Archive' }} />
     <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'My Profile' }} />
     <Stack.Screen name="SecuritySettings" component={SecuritySettingsScreen} options={{ title: 'Security' }} />
     <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notification Settings' }} />

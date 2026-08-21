@@ -73,7 +73,21 @@ const toAircraft = (record: LiveAircraftRecord, receivedAt: number): Aircraft | 
 };
 
 export const getLiveAircraftFeed = async (): Promise<LiveAircraftFeed> => {
-  const response = await axios.get<LiveAircraftResponse>(LIVE_AIRCRAFT_FEED_URL, { timeout: 12_000 });
+  let response;
+
+  try {
+    console.info(`[Aircraft feed] Sending GET ${LIVE_AIRCRAFT_FEED_URL}`);
+    response = await axios.get<LiveAircraftResponse>(LIVE_AIRCRAFT_FEED_URL, { timeout: 12_000 });
+    console.info(`[Aircraft feed] Received HTTP ${response.status} from ${LIVE_AIRCRAFT_FEED_URL}`);
+  } catch (requestError) {
+    const status = axios.isAxiosError(requestError) ? requestError.response?.status : undefined;
+    const message = status
+      ? `Aircraft feed request reached ${LIVE_AIRCRAFT_FEED_URL}, but the server returned HTTP ${status}.`
+      : `No HTTP response for aircraft feed request to ${LIVE_AIRCRAFT_FEED_URL}.`;
+    console.warn(`[Aircraft feed] ${message}`, requestError);
+    throw new Error(message);
+  }
+
   const feedTimestamp = typeof response.data.now === 'number' ? response.data.now * 1_000 : NaN;
   const receivedAt = Number.isFinite(feedTimestamp) ? feedTimestamp : Date.now();
   const aircraft = (response.data.aircraft ?? [])

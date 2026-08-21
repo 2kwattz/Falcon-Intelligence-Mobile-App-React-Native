@@ -27,6 +27,7 @@ export const MOCK_LOGIN_PASSWORD = USE_MOCK_API ? requireEnvironmentValue('MOCK_
 export const API_TIMEOUT_MS = 12_000;
 export const MOCK_DELAY_MS = 650;
 export const LIVE_AIRCRAFT_FEED_URL = 'http://150.107.210.11/data/aircraft.json';
+export const TRACKED_AIRCRAFT_ARCHIVE_URL = 'http://150.107.210.11/trackedaircrafts';
 export const LIVE_AIRCRAFT_POLL_INTERVAL_MS = 10_000;
 export const INDIAN_AIR_FORCE_DATABASE_PATH = '/api/aircraft/indian-air-force';
 export const OPEN_METEO_FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';

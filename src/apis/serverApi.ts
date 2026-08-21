@@ -9,16 +9,26 @@ const SERVER_STATUS_TIMEOUT_MS = 2_500;
 
 export const getServerStatus = async (): Promise<ServerStatus> => {
   const startedAt = Date.now();
+  const requestUrl = apiClient.getUri({ url: '/' });
 
   try {
-    // The base URL itself is the health check endpoint. Do not use mock data here:
-    // server availability should always reflect the configured server.
-    const response = await apiClient.get('/', { timeout: SERVER_STATUS_TIMEOUT_MS });
+    // A response from the host proves it is reachable, including a 4xx/5xx response.
+    // `validateStatus` prevents Axios from treating a missing route (404) as a
+    // connection failure, which are two different problems.
+    console.info(`[Server check] Sending GET ${requestUrl}`);
+    const response = await apiClient.get('/', {
+      timeout: SERVER_STATUS_TIMEOUT_MS,
+      validateStatus: () => true,
+    });
+    console.info(`[Server check] Received HTTP ${response.status} from ${requestUrl}`);
+
     return {
       online: true,
       latencyMs: Date.now() - startedAt,
       checkedAt: new Date().toISOString(),
       statusCode: response.status,
+      requestUrl,
+      routeAvailable: response.status >= 200 && response.status < 400,
     };
   } catch (requestError) {
     const error = requestError instanceof Error
@@ -30,7 +40,8 @@ export const getServerStatus = async (): Promise<ServerStatus> => {
       online: false,
       latencyMs: Date.now() - startedAt,
       checkedAt: new Date().toISOString(),
-      error,
+      requestUrl,
+      error: `No HTTP response for GET ${requestUrl}. ${error}`,
     };
   }
 };

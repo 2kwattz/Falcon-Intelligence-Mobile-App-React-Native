@@ -1,60 +1,23 @@
 import { apiClient } from './apiClient';
+import { iafData } from './indianAirForceData';
 import { delay } from './mockData';
 import { INDIAN_AIR_FORCE_DATABASE_PATH, USE_MOCK_API } from '@/constants/config';
 import { IndianAirForceAircraft } from '@/types/airForce';
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
-const mockIndianAirForceAircraft: IndianAirForceAircraft[] = [
-  {
-    id: 'iaf-1',
-    aircraftName: 'HAL Tejas Mk1',
-    modeSHex: '8001CA',
-    operator: 'Indian Air Force',
-    lastTracked: minutesAgo(4),
-    registration: 'LA-5031',
-  },
-  {
-    id: 'iaf-2',
-    aircraftName: 'Dassault Rafale EH',
-    modeSHex: '80029A',
-    operator: 'Indian Air Force',
-    lastTracked: minutesAgo(12),
-    registration: 'BS001',
-  },
-  {
-    id: 'iaf-3',
-    aircraftName: 'Boeing C-17 Globemaster III',
-    modeSHex: '800C17',
-    operator: 'Indian Air Force',
-    lastTracked: minutesAgo(18),
-    registration: 'CB-8001',
-  },
-  {
-    id: 'iaf-4',
-    aircraftName: 'Lockheed Martin C-130J-30',
-    modeSHex: '800130',
-    operator: 'Indian Air Force',
-    lastTracked: minutesAgo(31),
-    registration: 'KC-3801',
-  },
-  {
-    id: 'iaf-5',
-    aircraftName: 'Embraer Netra AEW&C',
-    modeSHex: '800AE1',
-    operator: 'Indian Air Force',
-    lastTracked: minutesAgo(47),
-    registration: 'KW-3553',
-  },
-  {
-    id: 'iaf-6',
-    aircraftName: 'Boeing 737-700 BBJ',
-    modeSHex: '800737',
-    operator: 'Indian Air Force Communication Squadron',
-    lastTracked: minutesAgo(96),
-    registration: 'K-5014',
-  },
-];
+const mockIndianAirForceAircraft: IndianAirForceAircraft[] = Object.values(iafData.allAircraft)
+  .flat()
+  .map((aircraft, index) => ({
+    id: `iaf-${index + 1}`,
+    aircraftName: aircraft.AircraftType,
+    modeSHex: aircraft.HexCode ?? '',
+    operator: aircraft.AircraftOperator,
+    registration: aircraft.Registration,
+    // The source dataset does not include tracking timestamps, so provide a
+    // stable-looking mock value for the database screen.
+    lastTracked: minutesAgo(index * 5 + 1),
+  }));
 
 export const getIndianAirForceAircraft = async (): Promise<IndianAirForceAircraft[]> => {
   if (USE_MOCK_API) {
